@@ -1,12 +1,14 @@
 "use client";
 
-import { Check, Moon, Sun } from "lucide-react";
+import { useState } from "react";
+import { Check, Loader2, Moon, Sun } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLanguage, type Locale } from "@/lib/i18n/language-provider";
 import { cn, getInitials } from "@/lib/utils";
 import type { CurrentUser } from "@/lib/auth/get-session";
+import type { Tables } from "@/lib/supabase/database.types";
 
 function OptionCard({
   active,
@@ -38,9 +40,90 @@ function OptionCard({
   );
 }
 
-export function SettingsView({ user }: { user: CurrentUser }) {
+function IntegrationRow({
+  integration,
+  onRegister,
+  registering,
+  result,
+}: {
+  integration: Tables<"integration_status">;
+  onRegister?: () => void;
+  registering?: boolean;
+  result?: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border px-4 py-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium capitalize text-foreground">{integration.integration}</span>
+        <span
+          className={cn(
+            "rounded-md px-2 py-0.5 text-xs font-medium",
+            integration.connected ? "bg-success-subtle text-success" : "bg-secondary text-muted-foreground",
+          )}
+        >
+          {integration.connected ? "Connected" : "Not connected"}
+        </span>
+      </div>
+      <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+        <span>
+          Last successful sync:{" "}
+          {integration.last_success_at ? new Date(integration.last_success_at).toLocaleString() : "never"}
+        </span>
+        {integration.last_error && (
+          <span className="text-destructive">
+            Last error ({integration.last_error_at ? new Date(integration.last_error_at).toLocaleString() : ""}):{" "}
+            {integration.last_error}
+          </span>
+        )}
+      </div>
+      {onRegister && (
+        <button
+          onClick={onRegister}
+          disabled={registering}
+          className="mt-1 flex w-fit items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-hover disabled:opacity-60"
+        >
+          {registering && <Loader2 className="size-3 animate-spin" />}
+          Register Shopify webhooks
+        </button>
+      )}
+      {result && <p className="text-xs text-muted-foreground">{result}</p>}
+    </div>
+  );
+}
+
+export function SettingsView({
+  user,
+  integrations,
+}: {
+  user: CurrentUser;
+  integrations: Tables<"integration_status">[];
+}) {
   const { theme, setTheme } = useTheme();
   const { locale, setLocale, t } = useLanguage();
+  const [registering, setRegistering] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  const shopify = integrations.find((i) => i.integration === "shopify");
+  const shipblu = integrations.find((i) => i.integration === "shipblu");
+
+  async function handleRegisterWebhooks() {
+    setRegistering(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/shopify/register-webhooks", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setResult(`Error: ${data.error ?? "unknown"}`);
+      } else {
+        const okCount = data.results.filter((r: { ok: boolean }) => r.ok).length;
+        setResult(`Registered ${okCount}/${data.results.length} webhook topics.`);
+      }
+    } catch (e) {
+      setResult(e instanceof Error ? e.message : "Request failed");
+    } finally {
+      setRegistering(false);
+    }
+  }
 
   return (
     <div>
@@ -86,6 +169,24 @@ export function SettingsView({ user }: { user: CurrentUser }) {
                 />
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-foreground">Integrations</CardTitle>
+            <CardDescription>Live connection status — Shopify Stage 1, ShipBlu coming in Stage 2.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {shopify && (
+              <IntegrationRow
+                integration={shopify}
+                onRegister={handleRegisterWebhooks}
+                registering={registering}
+                result={result}
+              />
+            )}
+            {shipblu && <IntegrationRow integration={shipblu} />}
           </CardContent>
         </Card>
 

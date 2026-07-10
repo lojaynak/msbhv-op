@@ -34,6 +34,7 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["roles"]["Insert"]>;
+        Relationships: [];
       };
       users: {
         Row: {
@@ -57,6 +58,15 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["users"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "users_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       customers: {
         Row: {
@@ -69,6 +79,7 @@ export interface Database {
           governorate: string | null;
           tags: string[];
           source: string;
+          shopify_customer_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -82,10 +93,12 @@ export interface Database {
           governorate?: string | null;
           tags?: string[];
           source?: string;
+          shopify_customer_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["customers"]["Insert"]>;
+        Relationships: [];
       };
       customer_notes: {
         Row: {
@@ -103,6 +116,7 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["customer_notes"]["Insert"]>;
+        Relationships: [];
       };
       products: {
         Row: {
@@ -126,6 +140,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
+        Relationships: [];
       };
       product_variants: {
         Row: {
@@ -151,6 +166,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["product_variants"]["Insert"]>;
+        Relationships: [];
       };
       inventory: {
         Row: {
@@ -172,6 +188,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["inventory"]["Insert"]>;
+        Relationships: [];
       };
       orders: {
         Row: {
@@ -207,6 +224,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["orders"]["Insert"]>;
+        Relationships: [];
       };
       order_items: {
         Row: {
@@ -226,6 +244,7 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["order_items"]["Insert"]>;
+        Relationships: [];
       };
       order_status_history: {
         Row: {
@@ -245,6 +264,7 @@ export interface Database {
           changed_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["order_status_history"]["Insert"]>;
+        Relationships: [];
       };
       order_notes: {
         Row: {
@@ -262,6 +282,7 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["order_notes"]["Insert"]>;
+        Relationships: [];
       };
       shipments: {
         Row: {
@@ -271,6 +292,7 @@ export interface Database {
           tracking_number: string | null;
           status: string;
           shipblu_shipment_id: string | null;
+          shopify_fulfillment_id: string | null;
           shipped_at: string | null;
           delivered_at: string | null;
           created_at: string;
@@ -283,12 +305,14 @@ export interface Database {
           tracking_number?: string | null;
           status?: string;
           shipblu_shipment_id?: string | null;
+          shopify_fulfillment_id?: string | null;
           shipped_at?: string | null;
           delivered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["shipments"]["Insert"]>;
+        Relationships: [];
       };
       payments: {
         Row: {
@@ -299,6 +323,7 @@ export interface Database {
           status: string;
           collected_at: string | null;
           created_at: string;
+          shopify_transaction_id: string | null;
         };
         Insert: {
           id?: string;
@@ -308,8 +333,10 @@ export interface Database {
           status?: string;
           collected_at?: string | null;
           created_at?: string;
+          shopify_transaction_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["payments"]["Insert"]>;
+        Relationships: [];
       };
       returns: {
         Row: {
@@ -329,6 +356,7 @@ export interface Database {
           resolved_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["returns"]["Insert"]>;
+        Relationships: [];
       };
       exchanges: {
         Row: {
@@ -350,6 +378,7 @@ export interface Database {
           resolved_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["exchanges"]["Insert"]>;
+        Relationships: [];
       };
       communications: {
         Row: {
@@ -377,6 +406,7 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["communications"]["Insert"]>;
+        Relationships: [];
       };
       tasks: {
         Row: {
@@ -410,6 +440,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["tasks"]["Insert"]>;
+        Relationships: [];
       };
       data_imports: {
         Row: {
@@ -435,6 +466,7 @@ export interface Database {
           completed_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["data_imports"]["Insert"]>;
+        Relationships: [];
       };
       ai_conversations: {
         Row: {
@@ -452,6 +484,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["ai_conversations"]["Insert"]>;
+        Relationships: [];
       };
       ai_messages: {
         Row: {
@@ -471,6 +504,29 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["ai_messages"]["Insert"]>;
+        Relationships: [];
+      };
+      integration_status: {
+        Row: {
+          id: string;
+          integration: string;
+          connected: boolean;
+          last_success_at: string | null;
+          last_error: string | null;
+          last_error_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          integration: string;
+          connected?: boolean;
+          last_success_at?: string | null;
+          last_error?: string | null;
+          last_error_at?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["integration_status"]["Insert"]>;
+        Relationships: [];
       };
     };
     Views: {
@@ -485,6 +541,7 @@ export interface Database {
           sku: string;
           product_name: string;
         };
+        Relationships: [];
       };
     };
     Functions: {
