@@ -1,13 +1,12 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
-// NOTE — Phase 1, app-shell step: Supabase isn't connected yet, so the
-// session-refresh + redirect-to-login logic (lib/supabase/middleware.ts)
-// is intentionally not called here — calling supabase.auth.getUser()
-// against placeholder env vars would just fail on every request. This
-// re-enables `updateSession(request)` in the auth-connection step; the
-// helper is already written and unit-testable in isolation.
-export async function middleware(_request: NextRequest) {
-  return NextResponse.next();
+// Phase 2: Supabase is connected — session refresh + redirect-to-login is
+// live again. (It was a no-op during the mock-data app-shell phase because
+// calling supabase.auth.getUser() against placeholder env vars would fail
+// on every request.)
+export async function middleware(request: NextRequest) {
+  return updateSession(request);
 }
 
 export const config = {

@@ -27,7 +27,7 @@ const en = {
   common: {
     signedInAs: "Signed in as",
     role: "Admin",
-    mockDataNotice: "Mock data — not yet connected to Supabase",
+    supabaseNotConnected: "Supabase isn't connected yet — showing zeroed values until it is.",
   },
   dashboard: {
     title: "Dashboard",

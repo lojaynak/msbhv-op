@@ -473,7 +473,20 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["ai_messages"]["Insert"]>;
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      v_low_stock_inventory: {
+        Row: {
+          id: string;
+          variant_id: string;
+          quantity_on_hand: number;
+          quantity_reserved: number;
+          low_stock_threshold: number;
+          location: string | null;
+          sku: string;
+          product_name: string;
+        };
+      };
+    };
     Functions: {
       is_admin: {
         Args: Record<string, never>;

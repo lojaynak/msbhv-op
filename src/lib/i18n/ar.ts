@@ -29,7 +29,7 @@ const ar: Dictionary = {
   common: {
     signedInAs: "تم تسجيل الدخول باسم",
     role: "مدير",
-    mockDataNotice: "بيانات تجريبية — لم يتم الربط بـ Supabase بعد",
+    supabaseNotConnected: "لم يتم الاتصال بـ Supabase بعد — يتم عرض قيم صفرية حتى يتم ذلك.",
   },
   dashboard: {
     title: "لوحة التحكم",

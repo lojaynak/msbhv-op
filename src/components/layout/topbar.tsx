@@ -5,8 +5,17 @@ import { useState } from "react";
 import { useTheme } from "@/lib/theme/theme-provider";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { UserMenu } from "./user-menu";
+import type { CurrentUser } from "@/lib/auth/get-session";
 
-export function Topbar({ title, onOpenMobileNav }: { title: string; onOpenMobileNav: () => void }) {
+export function Topbar({
+  title,
+  onOpenMobileNav,
+  user,
+}: {
+  title: string;
+  onOpenMobileNav: () => void;
+  user: CurrentUser;
+}) {
   const { theme, toggleTheme } = useTheme();
   const { locale, toggleLocale, t } = useLanguage();
   const [notice, setNotice] = useState<string | null>(null);
@@ -60,7 +69,7 @@ export function Topbar({ title, onOpenMobileNav }: { title: string; onOpenMobile
           <Bell className="size-4" />
         </button>
 
-        <UserMenu />
+        <UserMenu user={user} />
       </div>
 
       {notice && (

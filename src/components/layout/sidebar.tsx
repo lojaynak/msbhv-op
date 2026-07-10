@@ -5,15 +5,17 @@ import { NAV_GROUPS } from "@/config/nav";
 import { SidebarNavItem } from "./sidebar-nav-item";
 import { useLanguage } from "@/lib/i18n/language-provider";
 import { SITE } from "@/config/site";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
+import type { CurrentUser } from "@/lib/auth/get-session";
 
 type SidebarProps = {
   /** Mobile slide-over open state. Ignored on desktop (always visible). */
   mobileOpen: boolean;
   onClose: () => void;
+  user: CurrentUser;
 };
 
-export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
+export function Sidebar({ mobileOpen, onClose, user }: SidebarProps) {
   const { t } = useLanguage();
 
   const content = (
@@ -56,11 +58,11 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 
       <div className="flex items-center gap-2.5 border-t border-sidebar-border px-4 py-4">
         <div className="flex size-8 items-center justify-center rounded-full bg-secondary text-xs font-medium text-foreground">
-          AM
+          {getInitials(user.full_name)}
         </div>
         <div className="flex flex-col leading-none">
-          <span className="text-xs font-medium text-sidebar-foreground">Amira M.</span>
-          <span className="text-[11px] text-muted-foreground">{t.common.role}</span>
+          <span className="text-xs font-medium text-sidebar-foreground">{user.full_name}</span>
+          <span className="text-[11px] text-muted-foreground">{user.role?.name ?? t.common.role}</span>
         </div>
       </div>
     </div>
