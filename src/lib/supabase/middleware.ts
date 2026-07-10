@@ -38,7 +38,13 @@ export async function updateSession(request: NextRequest) {
   });
 
   const isAuthRoute = request.nextUrl.pathname.startsWith("/login");
-  const isPublicAsset = request.nextUrl.pathname.startsWith("/auth/callback");
+  // API routes authenticate themselves — webhook routes verify a signature
+  // (Shopify/ShipBlu calls have no browser session to redirect), and
+  // internal API routes call requireUser() themselves. None of them should
+  // ever be redirected to /login by middleware; a webhook redirected to a
+  // login page is a silent, hard-to-diagnose integration failure.
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
+  const isPublicAsset = request.nextUrl.pathname.startsWith("/auth/callback") || isApiRoute;
 
   let user = null;
   try {
