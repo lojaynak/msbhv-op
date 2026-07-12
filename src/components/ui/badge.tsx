@@ -15,6 +15,11 @@ const badgeVariants = cva(
         success: "border-transparent bg-success/15 text-success",
         warning: "border-transparent bg-warning/15 text-warning",
         destructive: "border-transparent bg-destructive/15 text-destructive",
+        info: "border-transparent bg-info/15 text-info",
+        // The one status pill allowed to borrow brand pink — "Ready to
+        // Ship" per the design system's Accent Rule #7 ("needs your
+        // action" is exactly what the accent is for).
+        accent: "border-transparent bg-primary-subtle text-primary-strong",
       },
     },
     defaultVariants: {
