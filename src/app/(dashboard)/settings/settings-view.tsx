@@ -138,7 +138,7 @@ export function SettingsView({
     let totalImported = 0;
     let totalFailed = 0;
     let pageCount = 0;
-    const MAX_PAGES_CLIENT_SAFETY = 200; // 200 * 25 = up to 5000 orders per click
+    const MAX_PAGES_CLIENT_SAFETY = 400; // 400 * 5 = up to 2000 orders per click
 
     try {
       while (pageCount < MAX_PAGES_CLIENT_SAFETY) {

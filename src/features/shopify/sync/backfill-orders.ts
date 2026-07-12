@@ -69,7 +69,7 @@ export type BackfillPageResult = {
 };
 
 /**
- * Processes exactly ONE page (25 orders) per call and returns immediately —
+ * Processes exactly ONE page (5 orders) per call and returns immediately —
  * deliberately, not a full backfill loop. Vercel's serverless functions
  * have a hard execution time limit (10-60s depending on plan), and a
  * single request handling hundreds of orders (each needing several
