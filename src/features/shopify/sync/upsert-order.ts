@@ -75,19 +75,29 @@ export async function upsertShopifyOrder(payload: ShopifyOrderPayload): Promise<
   // to be a real cost.
   await supabase.from("order_items").delete().eq("order_id", order.id);
 
-  for (const item of payload.line_items) {
-    const variantId = await upsertProductVariantStub(item);
-    if (!variantId) continue;
+  // Line items are independent of each other — process them concurrently
+  // instead of one at a time. This is the single biggest speedup available
+  // here: each item needs 2-3 sequential writes internally (product,
+  // variant, inventory), and running items in parallel means that cost is
+  // paid once per order instead of once per item.
+  const variantIds = await Promise.all(payload.line_items.map((item) => upsertProductVariantStub(item)));
 
-    const { error: itemError } = await supabase.from("order_items").insert({
+  const orderItemRows = payload.line_items
+    .map((item, i) => ({ item, variantId: variantIds[i] }))
+    .filter((row): row is { item: (typeof payload.line_items)[number]; variantId: string } => row.variantId !== null)
+    .map(({ item, variantId }) => ({
       order_id: order.id,
       variant_id: variantId,
       quantity: item.quantity,
       unit_price: Number(item.price),
-    });
+    }));
 
-    if (itemError) {
-      throw new Error(`upsertShopifyOrder (order_items) failed: ${itemError.message}`);
+  if (orderItemRows.length > 0) {
+    // One batch insert for every line item instead of one request per item
+    // — cuts what used to be N sequential round-trips down to 1.
+    const { error: itemsError } = await supabase.from("order_items").insert(orderItemRows);
+    if (itemsError) {
+      throw new Error(`upsertShopifyOrder (order_items) failed: ${itemsError.message}`);
     }
   }
 }

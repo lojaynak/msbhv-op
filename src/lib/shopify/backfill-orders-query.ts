@@ -11,7 +11,7 @@
  */
 export const BACKFILL_ORDERS_QUERY = `
   query BackfillOrders($cursor: String) {
-    orders(first: 5, after: $cursor, sortKey: CREATED_AT, reverse: true) {
+    orders(first: 3, after: $cursor, sortKey: CREATED_AT, reverse: true) {
       pageInfo { hasNextPage endCursor }
       nodes {
         id

@@ -3,9 +3,9 @@ import { requireUser } from "@/lib/auth/get-session";
 import { backfillShopifyOrdersPage } from "@/features/shopify/sync/backfill-orders";
 
 export const dynamic = "force-dynamic";
-// One page (25 orders) per call is fast — this is headroom, not a
-// requirement. See backfill-orders.ts for why pagination exists at all.
-export const maxDuration = 30;
+// 60s is the max Vercel's Hobby plan allows. Each page is now just 3
+// orders (down from 25), so this is generous headroom, not a requirement.
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const user = await requireUser();
