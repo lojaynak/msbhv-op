@@ -42,13 +42,11 @@ function OptionCard({
 
 function IntegrationRow({
   integration,
-  onRegister,
-  registering,
+  actions,
   result,
 }: {
   integration: Tables<"integration_status">;
-  onRegister?: () => void;
-  registering?: boolean;
+  actions?: { label: string; onClick: () => void; loading: boolean }[];
   result?: string | null;
 }) {
   return (
@@ -76,15 +74,20 @@ function IntegrationRow({
           </span>
         )}
       </div>
-      {onRegister && (
-        <button
-          onClick={onRegister}
-          disabled={registering}
-          className="mt-1 flex w-fit items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-hover disabled:opacity-60"
-        >
-          {registering && <Loader2 className="size-3 animate-spin" />}
-          Register Shopify webhooks
-        </button>
+      {actions && actions.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-2">
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              onClick={action.onClick}
+              disabled={action.loading}
+              className="flex w-fit items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-hover disabled:opacity-60"
+            >
+              {action.loading && <Loader2 className="size-3 animate-spin" />}
+              {action.label}
+            </button>
+          ))}
+        </div>
       )}
       {result && <p className="text-xs text-muted-foreground">{result}</p>}
     </div>
@@ -101,27 +104,52 @@ export function SettingsView({
   const { theme, setTheme } = useTheme();
   const { locale, setLocale, t } = useLanguage();
   const [registering, setRegistering] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [registerResult, setRegisterResult] = useState<string | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<string | null>(null);
 
   const shopify = integrations.find((i) => i.integration === "shopify");
   const shipblu = integrations.find((i) => i.integration === "shipblu");
 
   async function handleRegisterWebhooks() {
     setRegistering(true);
-    setResult(null);
+    setRegisterResult(null);
     try {
       const res = await fetch("/api/shopify/register-webhooks", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setResult(`Error: ${data.error ?? "unknown"}`);
+        setRegisterResult(`Error: ${data.error ?? "unknown"}`);
       } else {
         const okCount = data.results.filter((r: { ok: boolean }) => r.ok).length;
-        setResult(`Registered ${okCount}/${data.results.length} webhook topics.`);
+        setRegisterResult(`Registered ${okCount}/${data.results.length} webhook topics.`);
       }
     } catch (e) {
-      setResult(e instanceof Error ? e.message : "Request failed");
+      setRegisterResult(e instanceof Error ? e.message : "Request failed");
     } finally {
       setRegistering(false);
+    }
+  }
+
+  async function handleBackfillOrders() {
+    setBackfilling(true);
+    setBackfillResult(null);
+    try {
+      const res = await fetch("/api/shopify/backfill-orders", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setBackfillResult(`Error: ${data.error ?? "unknown"}`);
+      } else {
+        const cap = data.reachedPageCap
+          ? " (hit the per-run limit — click again to continue importing older orders)"
+          : "";
+        setBackfillResult(
+          `Imported ${data.imported} order(s), ${data.failed} failed.${cap}`,
+        );
+      }
+    } catch (e) {
+      setBackfillResult(e instanceof Error ? e.message : "Request failed");
+    } finally {
+      setBackfilling(false);
     }
   }
 
@@ -181,9 +209,11 @@ export function SettingsView({
             {shopify && (
               <IntegrationRow
                 integration={shopify}
-                onRegister={handleRegisterWebhooks}
-                registering={registering}
-                result={result}
+                actions={[
+                  { label: "Register Shopify webhooks", onClick: handleRegisterWebhooks, loading: registering },
+                  { label: "Backfill last 60 days of orders", onClick: handleBackfillOrders, loading: backfilling },
+                ]}
+                result={[registerResult, backfillResult].filter(Boolean).join(" · ") || null}
               />
             )}
             {shipblu && <IntegrationRow integration={shipblu} />}
