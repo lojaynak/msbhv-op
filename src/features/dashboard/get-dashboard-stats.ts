@@ -30,6 +30,37 @@ const EMPTY_STATS: DashboardStats = {
 };
 
 /**
+ * Returns midnight *in Cairo*, as a UTC ISO string — not the server's own
+ * local time. Vercel's serverless functions run in UTC, so a naive
+ * `new Date().setHours(0,0,0,0)` computes UTC midnight, not Cairo midnight
+ * (UTC+2 in winter, UTC+3 during Egypt's DST window) — meaning orders
+ * placed late evening or early morning Cairo time could be miscounted as
+ * "yesterday" or "today" incorrectly. Uses Intl's timezone data rather
+ * than a hardcoded offset, so it stays correct across DST changes.
+ */
+function getStartOfTodayInCairo(): string {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Africa/Cairo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+
+  const year = parts.find((p) => p.type === "year")!.value;
+  const month = parts.find((p) => p.type === "month")!.value;
+  const day = parts.find((p) => p.type === "day")!.value;
+
+  // Find the UTC offset actually in effect for Cairo today (handles DST).
+  const cairoNow = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Cairo" }));
+  const utcNow = new Date(now.toLocaleString("en-US", { timeZone: "UTC" }));
+  const offsetMs = cairoNow.getTime() - utcNow.getTime();
+
+  const midnightCairoAsUtc = new Date(`${year}-${month}-${day}T00:00:00.000Z`).getTime() - offsetMs;
+  return new Date(midnightCairoAsUtc).toISOString();
+}
+
+/**
  * Replaces every mock dashboard number with a real Supabase query. Every
  * count uses PostgREST's `count: "exact", head: true` so only a row count
  * is returned, not the actual rows — cheap even as tables grow.
@@ -46,8 +77,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
   try {
     const supabase = await createClient();
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    const startOfToday = getStartOfTodayInCairo();
 
     const countByStatus = (status: string) =>
       supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", status);
@@ -67,7 +97,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       supabase
         .from("orders")
         .select("*", { count: "exact", head: true })
-        .gte("created_at", startOfToday.toISOString()),
+        .gte("created_at", startOfToday),
       countByStatus("pending_confirmation"),
       countByStatus("confirmed"),
       countByStatus("ready_to_ship"),

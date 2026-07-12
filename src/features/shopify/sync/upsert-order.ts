@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ShopifyOrderPayload } from "@/lib/shopify/types";
 import { mapShopifyOrderStatus } from "@/lib/shopify/status-map";
-import { upsertCustomerFromOrder } from "./upsert-customer";
+import { upsertCustomerFromOrder, upsertGuestCustomerFromOrder } from "./upsert-customer";
 import { upsertProductVariantStub } from "./upsert-product-stub";
 
 /**
@@ -13,20 +13,25 @@ import { upsertProductVariantStub } from "./upsert-product-stub";
 export async function upsertShopifyOrder(payload: ShopifyOrderPayload): Promise<void> {
   const supabase = createAdminClient();
 
+  // Most orders have a full Shopify customer profile. Guest checkouts and
+  // manually-created draft orders (e.g. testing by marking a draft as
+  // paid, with no customer picked) don't — those fall back to matching by
+  // phone/email instead of a Shopify customer ID. See upsert-customer.ts.
   const customerId = payload.customer
     ? await upsertCustomerFromOrder(payload.customer, payload.shipping_address)
-    : null;
+    : await upsertGuestCustomerFromOrder({
+        email: payload.email,
+        phone: payload.phone,
+        shippingAddress: payload.shipping_address,
+      });
 
   if (!customerId) {
-    // Most likely cause: Shopify is withholding customer PII because this
-    // app hasn't been approved/configured for "Protected customer data
-    // access" in the Dev Dashboard (App → Configuration) — scopes alone
-    // aren't enough for that. Throwing (rather than silently skipping)
-    // makes this show up as a visible error in Settings → Integrations
-    // instead of an order just quietly never appearing.
+    // Genuinely no identifying info at all (no customer, no email, no
+    // phone anywhere on the order) — nothing to attach a customer to.
+    // Rare in practice; visible here rather than silently vanishing.
     throw new Error(
-      `Order ${payload.name} (id ${payload.id}) has no customer data in its webhook payload — ` +
-        `likely missing "Protected customer data access" approval in the Shopify Dev Dashboard.`,
+      `Order ${payload.name} (id ${payload.id}) has no customer, email, or phone anywhere ` +
+        `in its payload — nothing to match or create a customer record from.`,
     );
   }
 
@@ -51,6 +56,10 @@ export async function upsertShopifyOrder(payload: ShopifyOrderPayload): Promise<
         discount: Number(payload.total_discounts),
         total: Number(payload.total_price),
         source: "shopify",
+        // The order's REAL creation date in Shopify — not sync time. This
+        // matters a lot for backfilled orders (which sync well after the
+        // fact) and for anything date-filtered, like "Today's Orders".
+        created_at: payload.created_at,
       },
       { onConflict: "shopify_order_id" },
     )
