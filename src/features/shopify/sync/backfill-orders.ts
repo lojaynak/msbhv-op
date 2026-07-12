@@ -7,6 +7,7 @@ import {
 import type { ShopifyOrderPayload } from "@/lib/shopify/types";
 import { upsertShopifyOrder } from "./upsert-order";
 import { recordIntegrationError, recordIntegrationSuccess } from "@/lib/integrations/health";
+import { retryOnTransientAuthError } from "@/lib/utils/retry";
 
 // GraphQL's displayFulfillmentStatus values -> the lowercase REST-style
 // values mapShopifyOrderStatus() already knows how to read (see status-map.ts).
@@ -97,7 +98,7 @@ export async function backfillShopifyOrdersPage(cursor: string | null): Promise<
 
     for (const node of data.orders.nodes) {
       try {
-        await upsertShopifyOrder(transformNode(node));
+        await retryOnTransientAuthError(() => upsertShopifyOrder(transformNode(node)));
         imported++;
       } catch (error) {
         failed++;

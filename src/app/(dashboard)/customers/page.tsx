@@ -1,5 +1,7 @@
-import { ModuleEmptyPage } from "@/components/shared/module-empty-page";
+import { getRecentCustomers } from "@/features/customers/get-customers";
+import { CustomersView } from "@/features/customers/components/customers-view";
 
-export default function CustomersPage() {
-  return <ModuleEmptyPage navId="customers" />;
+export default async function CustomersPage() {
+  const { customers, connected } = await getRecentCustomers();
+  return <CustomersView customers={customers} connected={connected} />;
 }

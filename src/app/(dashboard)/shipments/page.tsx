@@ -1,5 +1,7 @@
-import { ModuleEmptyPage } from "@/components/shared/module-empty-page";
+import { getRecentShipments } from "@/features/shipments/get-shipments";
+import { ShipmentsView } from "@/features/shipments/components/shipments-view";
 
-export default function ShipmentsPage() {
-  return <ModuleEmptyPage navId="shipments" />;
+export default async function ShipmentsPage() {
+  const { shipments, connected } = await getRecentShipments();
+  return <ShipmentsView shipments={shipments} connected={connected} />;
 }

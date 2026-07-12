@@ -4,6 +4,7 @@ import { recordIntegrationError, recordIntegrationSuccess } from "@/lib/integrat
 import { upsertShopifyOrder } from "@/features/shopify/sync/upsert-order";
 import { upsertShopifyFulfillment } from "@/features/shopify/sync/upsert-fulfillment";
 import { upsertShopifyRefund } from "@/features/shopify/sync/upsert-refund";
+import { retryOnTransientAuthError } from "@/lib/utils/retry";
 import type {
   ShopifyFulfillmentPayload,
   ShopifyOrderPayload,
@@ -45,14 +46,16 @@ export async function POST(request: NextRequest) {
       case "orders/create":
       case "orders/updated":
       case "orders/cancelled":
-        await upsertShopifyOrder(payload as ShopifyOrderPayload);
+        await retryOnTransientAuthError(() => upsertShopifyOrder(payload as ShopifyOrderPayload));
         break;
       case "fulfillments/create":
       case "fulfillments/update":
-        await upsertShopifyFulfillment(payload as ShopifyFulfillmentPayload);
+        await retryOnTransientAuthError(() =>
+          upsertShopifyFulfillment(payload as ShopifyFulfillmentPayload),
+        );
         break;
       case "refunds/create":
-        await upsertShopifyRefund(payload as ShopifyRefundPayload);
+        await retryOnTransientAuthError(() => upsertShopifyRefund(payload as ShopifyRefundPayload));
         break;
       default:
         // Unrecognized topic — acknowledge so Shopify doesn't retry, but
