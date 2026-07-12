@@ -133,21 +133,53 @@ export function SettingsView({
   async function handleBackfillOrders() {
     setBackfilling(true);
     setBackfillResult(null);
+
+    let cursor: string | null = null;
+    let totalImported = 0;
+    let totalFailed = 0;
+    let pageCount = 0;
+    const MAX_PAGES_CLIENT_SAFETY = 200; // 200 * 25 = up to 5000 orders per click
+
     try {
-      const res = await fetch("/api/shopify/backfill-orders", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setBackfillResult(`Error: ${data.error ?? "unknown"}`);
-      } else {
-        const cap = data.reachedPageCap
-          ? " (hit the per-run limit — click again to continue importing older orders)"
-          : "";
-        setBackfillResult(
-          `Imported ${data.imported} order(s), ${data.failed} failed.${cap}`,
-        );
+      while (pageCount < MAX_PAGES_CLIENT_SAFETY) {
+        pageCount++;
+        const res: Response = await fetch("/api/shopify/backfill-orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cursor }),
+        });
+        const data: {
+          imported: number;
+          failed: number;
+          hasMore: boolean;
+          nextCursor: string | null;
+          error?: string;
+        } = await res.json();
+
+        if (!res.ok) {
+          setBackfillResult(
+            `Error after ${totalImported} imported: ${data.error ?? "unknown"}`,
+          );
+          return;
+        }
+
+        totalImported += data.imported;
+        totalFailed += data.failed;
+        setBackfillResult(`Importing… ${totalImported} so far (${totalFailed} failed)`);
+
+        if (!data.hasMore) {
+          setBackfillResult(`Done — imported ${totalImported} order(s), ${totalFailed} failed.`);
+          return;
+        }
+        cursor = data.nextCursor;
       }
+      setBackfillResult(
+        `Imported ${totalImported} order(s) so far — click again to continue with older orders.`,
+      );
     } catch (e) {
-      setBackfillResult(e instanceof Error ? e.message : "Request failed");
+      setBackfillResult(
+        `Error after ${totalImported} imported: ${e instanceof Error ? e.message : "Request failed"}`,
+      );
     } finally {
       setBackfilling(false);
     }

@@ -60,63 +60,60 @@ function transformNode(node: BackfillOrderNode): ShopifyOrderPayload {
   };
 }
 
-export type BackfillResult = {
+export type BackfillPageResult = {
   imported: number;
   failed: number;
   errors: string[];
-  reachedPageCap: boolean;
+  hasMore: boolean;
+  nextCursor: string | null;
 };
 
-// Safety cap so one click can't run indefinitely / risk a serverless
-// timeout on a store with an unexpectedly large 60-day order volume.
-// 25/page * 40 pages = up to 1000 orders per run — click again to continue
-// if a store genuinely has more than that in the window.
-const MAX_PAGES = 40;
-
 /**
- * One-time (but safely re-runnable) backfill of whatever order history
- * Shopify's API will return without the read_all_orders scope — see the
- * query file for why that's a hard 60-day-ish platform limit, not a bug
- * here. Reuses upsertShopifyOrder() so backfilled orders go through the
- * exact same customer/product/order_items logic as live webhooks — same
- * upsert-by-shopify-id behavior, so running this after webhooks are
- * already live is safe and won't create duplicates.
+ * Processes exactly ONE page (25 orders) per call and returns immediately —
+ * deliberately, not a full backfill loop. Vercel's serverless functions
+ * have a hard execution time limit (10-60s depending on plan), and a
+ * single request handling hundreds of orders (each needing several
+ * sequential Supabase round-trips via upsertShopifyOrder) can exceed that
+ * and get killed mid-request by the platform itself — which returns its
+ * own error page instead of a JSON response, breaking the caller.
+ *
+ * The route handler (and the Settings UI button) calls this repeatedly,
+ * once per page, following `nextCursor` until `hasMore` is false. Each
+ * individual call stays small and fast regardless of total order volume.
+ * Reuses upsertShopifyOrder() so backfilled orders go through the exact
+ * same logic as live webhooks — safe to run after webhooks are live, and
+ * safe to re-run or resume after an interruption (upserts, not inserts).
  */
-export async function backfillShopifyOrders(): Promise<BackfillResult> {
-  let cursor: string | null = null;
+export async function backfillShopifyOrdersPage(cursor: string | null): Promise<BackfillPageResult> {
   let imported = 0;
   let failed = 0;
   const errors: string[] = [];
-  let page = 0;
 
   try {
-    while (page < MAX_PAGES) {
-      page++;
-      const data: BackfillOrdersResponse = await shopifyGraphQL<BackfillOrdersResponse>(
-        BACKFILL_ORDERS_QUERY,
-        { cursor },
-      );
+    const data: BackfillOrdersResponse = await shopifyGraphQL<BackfillOrdersResponse>(
+      BACKFILL_ORDERS_QUERY,
+      { cursor },
+    );
 
-      for (const node of data.orders.nodes) {
-        try {
-          await upsertShopifyOrder(transformNode(node));
-          imported++;
-        } catch (error) {
-          failed++;
-          const message = error instanceof Error ? error.message : String(error);
-          errors.push(`${node.name}: ${message}`);
-        }
+    for (const node of data.orders.nodes) {
+      try {
+        await upsertShopifyOrder(transformNode(node));
+        imported++;
+      } catch (error) {
+        failed++;
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`${node.name}: ${message}`);
       }
-
-      if (!data.orders.pageInfo.hasNextPage) {
-        await recordIntegrationSuccess("shopify");
-        return { imported, failed, errors, reachedPageCap: false };
-      }
-      cursor = data.orders.pageInfo.endCursor;
     }
 
     await recordIntegrationSuccess("shopify");
-    return { imported, failed, errors, reachedPageCap: true };
+    return {
+      imported,
+      failed,
+      errors,
+      hasMore: data.orders.pageInfo.hasNextPage,
+      nextCursor: data.orders.pageInfo.endCursor,
+    };
   } catch (error) {
     await recordIntegrationError("shopify", error);
     throw error;
